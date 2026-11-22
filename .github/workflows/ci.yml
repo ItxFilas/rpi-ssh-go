@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    defaults:
+      run:
+        # Git Bash on Windows: many tests run a real bash and need it in PATH.
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Check formatting
+        # Windows checkouts have CRLF line endings, which gofmt reports.
+        if: runner.os == 'Linux'
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "Run gofmt on:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test ./...
+
+      - name: Build for the other platforms
+        if: runner.os == 'Linux'
+        run: |
+          GOOS=windows GOARCH=amd64 go build -o /dev/null .
+          GOOS=darwin GOARCH=arm64 go build -o /dev/null .
+          GOOS=linux GOARCH=arm64 go build -o /dev/null .
+
+  race:
+    name: Race detector
+    runs-on: ubuntu-latest
+    # The race detector had not been run on this code when the workflow was
+    # added. Its findings are reported without failing the build; remove this
+    # line once the job is green.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Test with the race detector
+        run: go test -race ./...
