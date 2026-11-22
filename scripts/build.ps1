@@ -60,8 +60,10 @@ if ($PackageZip) {
     try {
         # Copy binary and user documentation
         Copy-Item -Path $targetPath -Destination (Join-Path $stageDir "rpi-ssh.exe") -Force
-        if (Test-Path (Join-Path $repoRoot "README.md")) {
-            Copy-Item -Path (Join-Path $repoRoot "README.md") -Destination (Join-Path $stageDir "README.md") -Force
+        foreach ($doc in @("README.md", "LICENSE", "CHANGELOG.md")) {
+            if (Test-Path (Join-Path $repoRoot $doc)) {
+                Copy-Item -Path (Join-Path $repoRoot $doc) -Destination (Join-Path $stageDir $doc) -Force
+            }
         }
 
         # Audit packaging: strictly ensure no forbidden files (.env, cookies, .git, backup executables)
